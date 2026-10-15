@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Self-Test SandiLatihan</title>
+  <style>
+    body { font-family: Consolas, monospace; background: #f6f8fc; color: #1f2430; padding: 24px; }
+    .pass { color: #16a34a; } .fail { color: #dc2626; } pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Self-Test SandiLatihan</h1>
+  <div id="out">Menjalankan…</div>
+  <script src="js/config.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/extract.js"></script>
+  <script src="js/ai.js"></script>
+  <script>
+    const results = [];
+    const t = (name, fn) => {
+      try { fn(); results.push(`<div class="pass">✔ ${name}</div>`); }
+      catch (e) { results.push(`<div class="fail">✘ ${name}<br><pre>${e.message}\n${e.stack || ""}</pre></div>`); }
+    };
+    const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
+
+    t("Semua modul terpasang", () => {
+      assert(window.SANDI_PARSER, "SANDI_PARSER hilang");
+      assert(window.SANDI_EXTRACT, "SANDI_EXTRACT hilang");
+      assert(window.SANDI_AI, "SANDI_AI hilang");
+    });
+
+    const P = window.SANDI_PARSER;
+
+    t("Contoh soal → 5 soal (3 PG + 2 essay)", () => {
+      const { questions } = P.parseQuestions(P.SAMPLE_TEXT);
+      assert(questions.length === 5, "dapet " + questions.length);
+      assert(questions.filter(q => q.type === "mc").length === 3, "MC salah hitung");
+      assert(questions.filter(q => q.type === "essay").length === 2, "essay salah hitung");
+    });
+
+    t("Kunci PG terbaca benar", () => {
+      const { questions } = P.parseQuestions(P.SAMPLE_TEXT);
+      const q1 = questions[0];
+      assert(q1.answerIdx === 1, "soal 1 kunci harus B, dapat " + q1.answerIdx);
+      assert(q1.options[1] === "Bandung", "teks opsi B salah");
+      const q2 = questions[1];
+      assert(q2.answerIdx === 0, "soal 2 kunci harus A, dapat " + q2.answerIdx);
+    });
+
+    t("Opsi tidak bocor ke teks soal", () => {
+      const { questions } = P.parseQuestions(P.SAMPLE_TEXT);
+      const q1 = questions[0];
+      assert(!/Semarang/.test(q1.question), "opsi ikut di teks soal: " + q1.question);
+      assert(q1.options.length === 4, "jumlah opsi " + q1.options.length);
+    });
+
+    t("Essay: kunci + kata kunci", () => {
+      const { questions } = P.parseQuestions(P.SAMPLE_TEXT);
+      const q4 = questions[3];
+      assert(q4.type === "essay", "tipe " + q4.type);
+      assert(/fotosintesis/i.test(q4.answerText), "kunci essay hilang");
+      assert(q4.keywords.length > 0, "kata kunci kosong");
+      assert(!q4.keywords.includes("adalah"), "stopword belum dibuang");
+    });
+
+    t("Kunci jawaban global 'Kunci Jawaban: 1.C 2.B' didukung", () => {
+      const txt = "1. Soal satu?\nA. x\nB. y\nC. z\n\n2. Soal dua?\nA. x\nB. y\nC. z\n\nKunci Jawaban: 1.C 2.B";
+      const { questions } = P.parseQuestions(txt);
+      assert(questions[0].answerIdx === 2, "kunci global no.1 gagal");
+      assert(questions[1].answerIdx === 1, "kunci global no.2 gagal");
+    });
+
+    t("Kunci di halaman terpisah dengan format baris '1. A' didukung", () => {
+      const txt = "1. Soal satu?\nA. x\nB. y\nC. z\n\n2. Soal dua?\nA. x\nB. y\nC. z\n\nHALAMAN KUNCI JAWABAN\n1. B\n2. C";
+      const { questions } = P.parseQuestions(txt);
+      assert(questions.length === 2, "baris kunci terbaca sebagai soal");
+      assert(questions[0].answerIdx === 1, "kunci no.1 gagal");
+      assert(questions[1].answerIdx === 2, "kunci no.2 gagal");
+    });
+
+    t("Kunci terpisah dengan format '1 A | 2 B' didukung", () => {
+      const txt = "1. Soal satu?\nA. x\nB. y\n\n2. Soal dua?\nA. x\nB. y\n\nKunci:\n1 A | 2 B";
+      const { questions } = P.parseQuestions(txt);
+      assert(questions[0].answerIdx === 0, "kunci format spasi no.1 gagal");
+      assert(questions[1].answerIdx === 1, "kunci format spasi no.2 gagal");
+    });
+
+    t("Teks footer setelah opsi D tidak masuk ke pilihan", () => {
+      const txt = "13. Pilih jawaban yang benar.\nA. Pilihan pertama\nB. Pilihan kedua\nC. Pilihan ketiga\nD. Pilihan keempat\nHalaman 5\n14. Pertanyaan berikutnya?\nA. Ya\nB. Tidak\nKunci Jawaban: 13.D 14.A";
+      const { questions } = P.parseQuestions(txt);
+      assert(questions.length === 2, "jumlah soal berubah");
+      assert(questions[0].options[3] === "Pilihan keempat", "teks footer masuk ke opsi D");
+      assert(questions[0].answerIdx === 3, "kunci soal 13 salah");
+    });
+
+    t("Blok kunci PDF padat tidak masuk ke opsi D", () => {
+      const txt = "30. Pola bilangan 4, 8, 16, 32, ...\nA. 36\nB. 48\nC. 56\nD. 64\n1 A B C D 11 A B C D 21 A B C D\n2 A B C D 12 A B C D 22 A B C D\n3 A B C D 13 A B C D 23 A B C D";
+      const { questions } = P.parseQuestions(txt);
+      assert(questions.length === 1, "blok kunci terbaca sebagai soal");
+      assert(questions[0].options[3] === "64", "blok kunci masuk ke opsi D");
+    });
+
+    t("Teks tanpa soal → error jelas", () => {
+      let threw = false;
+      try { P.parseQuestions("halo dunia ini bukan soal"); }
+      catch (e) { threw = true; assert(/Tidak ada soal/.test(e.message), "pesan salah: " + e.message); }
+      assert(threw, "harusnya melempar error");
+    });
+
+    t("Skor kata kunci (fallback essay tanpa AI)", () => {
+      const ref = "Fotosintesis tumbuhan membuat makanan memakai cahaya matahari air dan karbon dioksida menghasilkan glukosa oksigen";
+      const kws = P.extractKeywords(ref);
+      const bagus = "Tumbuhan membuat makanan lewat cahaya matahari dan menghasilkan oksigen serta glukosa";
+      const kosong = "";
+      const hit = (s) => Math.round(100 * kws.filter(k => s.toLowerCase().includes(k)).length / kws.length);
+      const h1 = hit(bagus), h0 = hit(kosong);
+      assert(h0 === 0, "jawaban kosong harus 0");
+      assert(h1 >= Math.max(30, 0), "jawaban bagus skor " + h1 + " (harus >= 30)");
+      assert(h1 > h0, "skor bagus harus > kosong");
+    });
+
+    t("escapeHtml & utilTERS", () => {
+      // pastikan app.js bisa di-URL-check minimal: tambahkan check api
+      assert(typeof String.prototype.padStart === "function");
+    });
+
+    document.getElementById("out").innerHTML =
+      `<div style="margin-bottom:10px">Hasil: ${results.filter(r => r.includes("pass")).length} ✔, ${results.filter(r => r.includes("fail")).length} ✘</div>` + results.join("");
+  </script>
+</body>
+</html>

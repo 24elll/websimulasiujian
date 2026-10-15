@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SandiLatihan — Generator Soal Latihan & Skor</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127919;</text></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">&#127919;</span>
+      <div>
+        <h1>Simulasi Ujian</h1>
+        <p>Ruang latihan ujian yang lebih terarah</p>
+      </div>
+    </div>
+    <nav class="tabs" id="mainTabs">
+      <button class="tab active" data-tab="tab-file">&#128196; File / Gambar Soal</button>
+      <button class="tab" data-tab="tab-kisi">&#128210; Kisi-kisi + AI</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ TAB 1: FILE SOAL UTUH ============ -->
+    <section id="tab-file" class="panel active">
+      <div class="card equal-grid" style="grid-template-columns: 2.2fr 1fr;">
+        <div>
+          <h2>&#128193; Upload File Soal</h2>
+          <p class="hint" id="extractHint">Sudah punya soal dalam bentuk .txt, .pdf, atau gambar (foto buku/soal)? Upload di sini — gambar akan dibaca dengan OCR, lalu disusun otomatis menjadi soal pilihan ganda &amp; essay.</p>
+          <div id="dropZone" class="drop-zone">
+            <input type="file" id="fileInput" accept=".txt,.md,.pdf,image/*" multiple hidden />
+            <div class="dz-icon">&#128228;</div>
+            <p><strong>Tarik &amp; lepas file ke sini</strong> atau klik untuk memilih</p>
+            <p class="hint">Hanya berjalan di browser Anda (lokal, tanpa server).</p>
+          </div>
+          <div id="fileList" class="file-list"></div>
+          <div class="progress-wrap hidden" id="progressWrap">
+            <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+            <p class="hint" id="progressText"></p>
+          </div>
+          <div class="row gap" style="margin-top:10px">
+            <button class="btn" id="btnParseFiles">&#128269; Susun Soal dari File</button>
+          </div>
+        </div>
+        <div>
+          <h2>&#9997;&#65039; … atau ketik / tempel soal</h2>
+          <textarea id="pasteArea" rows="10" placeholder="1. Ibu kota Provinsi Jawa Barat adalah ...&#10;A. Semarang&#10;B. Bandung&#10;C. Surabaya&#10;D. Serang&#10;Jawaban: B&#10;&#10;2. Jelaskan proses fotosintesis!&#10;Jawaban: Proses tumbuhan membuat makanan memakai cahaya matahari, air, dan karbon dioksida menghasilkan glukosa serta oksigen."></textarea>
+          <div class="row gap">
+            <button class="btn" id="btnParseText">&#128269; Analisis Soal</button>
+            <button class="btn ghost" id="btnSample">&#127918; Muat contoh soal</button>
+          </div>
+          <p class="hint">Format yang dipahami: soal bernomor &rarr; opsi A/B/C/D(&hellip;) &rarr; baris <b>Jawaban:</b> atau <b>Kunci:</b>. Tanpa opsi &rarr; otomatis dianggap <b>essay</b>. Kisi-kisi jawaban di akhir juga didukung.</p>
+        </div>
+      </div>
+      <div id="parseError" class="alert hidden"></div>
+    </section>
+
+    <!-- ============ TAB 2: KISI-KISI + AI ============ -->
+    <section id="tab-kisi" class="panel">
+      <div class="card">
+        <h2>&#128210; Buat Soal dari Kisi-kisi (AI)</h2>
+        <p class="hint">Tempel daftar kisi-kisi (materi, indikator, atau poin-poin). AI akan menyusunnya menjadi soal pilihan ganda &amp; essay lengkap dengan kunci jawaban .</p>
+        <div class="equal-grid" style="grid-template-columns: 2fr 1fr;">
+          <div>
+            <textarea id="kisiInput" rows="12" placeholder="Contoh kisi-kisi:&#10;1. Teori atom Dalton — menjelaskan postulatnya&#10;2. Sistem periodik unsur — menentukan golongan unsur&#10;3. Polimer — menggolongkan polimer alami dan sintetis&#10;4. Tata nama senyawa ionik&#10;5. Stoikiometri — menghitung mol dan massa"></textarea>
+            <p class="hint">Bisa juga tempel materi sebebasnya (catatan pelajaran, rangkuman bab). Semakin detail, semakin bagus soalnya.</p>
+          </div>
+          <div class="form-col">
+            <label>Jumlah soal pilihan ganda</label>
+            <input type="number" id="kisiMC" value="5" min="0" max="30" />
+            <label>Jumlah soal essay</label>
+            <input type="number" id="kisiEssay" value="3" min="0" max="20" />
+            <label>Jenjang</label>
+            <select id="kisiLevel">
+              <option>SD</option><option selected>SMP</option><option>SMA</option>
+              <option>SMK</option><option>Kuliah</option><option>Umum</option>
+            </select>
+            <label>Pelajaran / bab (opsional)</label>
+            <input type="text" id="kisiSubject" placeholder="mis. Kimia — Bab 3" />
+            <label id="kisiAIHint" class="hint inline-hint"></label>
+            <button class="btn primary" id="btnMakeFromKisi">&#10024; Buat Soal dengan AI</button>
+            <div id="kisiStatus" class="hint"></div>
+          </div>
+        </div>
+      </div>
+      <div id="kisiError" class="alert hidden"></div>
+    </section>
+
+    <!-- ============ LAYAR: PERSIAPAN KUIS ============ -->
+    <section id="screen-prepare" class="screen hidden">
+      <div class="card">
+        <div class="row space-center">
+          <h2>&#129504; Soal Berhasil Disusun</h2>
+          <button class="btn ghost" id="btnBackHome">&#8592; Kembali</button>
+        </div>
+        <div id="prepareSummary" class="summary-row"></div>
+        <div class="equal-grid" style="grid-template-columns: 1fr 1fr; align-items:end;">
+          <div class="form-col">
+            <label>Pelajaran / judul paket (opsional)</label>
+            <input type="text" id="quizTitle" placeholder="mis. Latihan Kimia Bab 3" />
+            <div class="form-opts">
+              <label class="check"><input type="checkbox" id="optShuffle" /> Acak urutan soal</label>
+              <label class="check"><input type="checkbox" id="optShuffleOpts" /> Acak posisi opsi pilihan ganda</label>
+              <label class="check"><input type="checkbox" id="optTimer" /> Gunakan timer</label>
+            </div>
+            <input type="number" id="optTimerMin" value="20" min="1" max="180" class="hidden" />
+          </div>
+          <div class="form-col">
+            <button class="btn primary big" id="btnStartQuiz">&#9654;&#65039; Mulai Latihan</button>
+          </div>
+        </div>
+        <div id="previewList" class="preview-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ LAYAR: KUIS ============ -->
+    <section id="screen-quiz" class="screen hidden">
+      <div class="quiz-top card">
+        <div class="row space-center">
+          <div>
+            <strong id="quizTitleLbl">—</strong>
+            <span class="hint" id="quizProgressLbl"></span>
+          </div>
+          <div class="row gap">
+            <div id="quizTimer" class="timer hidden"></div>
+            <button class="btn ghost" id="btnFinishTop">Selesai &#10004;&#65039;</button>
+          </div>
+        </div>
+        <div class="progress"><div class="progress-bar" id="quizProgressBar"></div></div>
+      </div>
+
+      <div class="card quiz-card" id="quizCard"><!-- diisi JS --></div>
+
+      <div class="quiz-nav">
+        <button class="btn" id="btnPrev">&#8592; Sebelumnya</button>
+        <button class="btn" id="btnNext">Berikutnya &#8594;</button>
+      </div>
+      <div class="quiz-dots" id="quizDots"></div>
+    </section>
+
+    <!-- ============ LAYAR: HASIL ============ -->
+    <section id="screen-result" class="screen hidden">
+      <div class="card center">
+        <h2>&#127942; Hasil Latihan</h2>
+        <div class="score-ring">
+          <svg viewBox="0 0 120 120" width="150" height="150">
+            <circle cx="60" cy="60" r="52" class="ring-bg" />
+            <circle cx="60" cy="60" r="52" class="ring-fg" id="ringFg" />
+            <text x="60" y="57" text-anchor="middle" class="ring-num" id="scorePct">0%</text>
+            <text x="60" y="74" text-anchor="middle" class="ring-lbl" id="scorePts">—</text>
+          </svg>
+          <p id="scoreMsg" class="score-msg"></p>
+        </div>
+        <div id="resultBreakdown" class="summary-row"></div>
+        <div class="row gap center-row">
+          <button class="btn primary" id="btnReview">&#128269; Lihat Pembahasan</button>
+          <button class="btn" id="btnRetryWrong">&#128260; Latihan Soal yang Salah</button>
+          <button class="btn ghost" id="btnHome2">&#127968; Kembali ke Beranda</button>
+        </div>
+      </div>
+      <div class="card hidden" id="reviewCard">
+        <h2>&#128218; Pembahasan</h2>
+        <div id="reviewList"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">Dibuat untuk latihan belajar &bull; Semua pemrosesan file terjadi di browser</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/extract.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
