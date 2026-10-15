@@ -21,9 +21,4 @@ window.SANDI_CONFIG = {
     model: "gemini-3.5-flash-lite", // model yang tersedia untuk API key ini
   },
 
-  openai: {
-    baseUrl: "https://api.openai.com/v1",
-    apiKey: "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",
-    model: "gpt-4o-mini",
-  },
 };
