@@ -17,8 +17,13 @@ window.SANDI_CONFIG = {
   aiGrade: true,
 
   gemini: {
-    apiKey: "AQ.Ab8RN6Ipr9gUEvmox8t7FvgMq0IWzVQRLpXIfkfUpiMA3lBdWA",
-    model: "gemini-3.5-flash-lite", // model yang tersedia untuk API key ini
+    apiKey: "AQ.Ab8RN6L0bibZDUDzXxD8Q2P7q6_5eQVE7uFOtccGqk7AFF6b8g",
+    model: "gemini-3.5-flash-lite",
   },
 
+  openai: {
+    baseUrl: "https://api.openai.com/v1",
+    apiKey: "",
+    model: "gpt-4o-mini",
+  },
 };
