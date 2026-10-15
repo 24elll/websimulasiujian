@@ -42,7 +42,15 @@ async function callGemini(cfg, prompt) {
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || `Gemini HTTP ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error("API key Gemini ditolak (401). Buat API key baru di Google AI Studio, pastikan Gemini API aktif, lalu update js/config.js di repository dan lakukan hard refresh.");
+    }
+    if (res.status === 403) {
+      throw new Error("Akses Gemini ditolak (403). Periksa pembatasan API key, project Google Cloud, dan kuota Gemini.");
+    }
+    throw new Error(data?.error?.message || `Gemini HTTP ${res.status}`);
+  }
   const txt = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
   if (!txt) throw new Error("Gemini tidak mengembalikan teks.");
   return txt;
@@ -172,4 +180,3 @@ async function aiGradeEssays(cfg, items) {
 }
 
 window.SANDI_AI = { aiLoadSettings, aiSaveSettings, callAI, aiGenerateQuestions, aiGradeEssays };
-
