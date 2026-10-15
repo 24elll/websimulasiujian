@@ -31,11 +31,13 @@ async function callAI(cfg, prompt) {
 
 async function callGemini(cfg, prompt) {
   const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.geminiModel)}:generateContent` +
-    `?key=${encodeURIComponent(cfg.key)}`;
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.geminiModel)}:generateContent`;
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": cfg.key,
+    },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
@@ -44,7 +46,7 @@ async function callGemini(cfg, prompt) {
   const data = await res.json();
   if (!res.ok) {
     if (res.status === 401) {
-      throw new Error("API key Gemini ditolak (401). Buat API key baru di Google AI Studio, pastikan Gemini API aktif, lalu update js/config.js di repository dan lakukan hard refresh.");
+      throw new Error("API key Gemini ditolak (401). Pastikan key dari Google AI Studio sudah tersalin lengkap, Gemini API aktif, lalu update js/config.js di repository dan lakukan hard refresh.");
     }
     if (res.status === 403) {
       throw new Error("Akses Gemini ditolak (403). Periksa pembatasan API key, project Google Cloud, dan kuota Gemini.");
